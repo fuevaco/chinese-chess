@@ -1,13 +1,21 @@
 // ============================================================
-// 中國象棋 3D —— Three.js 呈現 + 互動
+// 中國象棋 —— 固定平面棋盤 + 互動
 // ============================================================
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {
   ROWS, COLS, RED, BLACK,
   initialBoard, legalMoves, applyMove, inCheck,
   hasAnyLegalMove, name, notation, hashBoard, repetitionVerdict,
-} from './game.js?v=e7dfdc3c2e';
+} from './game.js?v=604e7afa0c';
+import { DEFAULT_LEVEL, getDifficulty } from './difficulty.js?v=604e7afa0c';
+
+// Canvas 貼圖不會隨網頁字型載入而自動重畫，先載好字型再建立棋盤與棋子。
+const CHESS_FONT_FAMILY = '"Xiangqi WenKai", "DFKai-SB", "KaiTi", serif';
+try {
+  await document.fonts.load('500 138px "Xiangqi WenKai"', '帥仕相傌俥炮兵將士象馬車砲卒楚河漢界');
+} catch {
+  // 字型載入失敗時仍可使用系統字型繼續對弈。
+}
 
 // ---------------- 常數 ----------------
 const CELL = 1;
@@ -24,57 +32,23 @@ const to3D = (r, c) =>
 const container = document.getElementById('stage');
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x171310);
-scene.fog = new THREE.Fog(0x171310, 20, 46);
-
-const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
-
-// 預設機位：以注視點為圓心，向左旋轉 90°（方位角 -90°）、向下翻轉 45°（極角 45°）
-const HOME_DIST = 14.8;
-const HOME_AZIMUTH = -90;
-const HOME_POLAR = 45;
-const HOME_TGT = new THREE.Vector3(0, -0.1, 0.2);
-const HOME = {
-  tgt: HOME_TGT,
-  pos: new THREE.Vector3()
-    .setFromSphericalCoords(
-      HOME_DIST,
-      THREE.MathUtils.degToRad(HOME_POLAR),
-      THREE.MathUtils.degToRad(HOME_AZIMUTH),
-    )
-    .add(HOME_TGT),
-};
-camera.position.copy(HOME.pos);
+// 正交投影讓棋盤保持平面，紅方在下、黑方在上，不受舊視角設定影響。
+const camera = new THREE.OrthographicCamera(-6, 6, 6, -6, 0.1, 100);
+camera.position.set(0, 16, 0);
+camera.up.set(0, 0, -1);
+camera.lookAt(0, 0, 0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 container.appendChild(renderer.domElement);
 
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.copy(HOME.tgt);
-controls.enableDamping = true;
-controls.dampingFactor = 0.08;
-controls.minDistance = 5;
-controls.maxDistance = 22;
-controls.minPolarAngle = 0.25;
-controls.maxPolarAngle = 1.38;
-controls.enablePan = false;
-controls.update();
-
 // ---------------- 灯光 ----------------
 scene.add(new THREE.HemisphereLight(0xfff1dd, 0x241b12, 0.85));
 const sun = new THREE.DirectionalLight(0xffe7c2, 1.9);
 sun.position.set(6, 12, 7);
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.left = -9; sun.shadow.camera.right = 9;
-sun.shadow.camera.top = 10; sun.shadow.camera.bottom = -10;
-sun.shadow.camera.near = 2; sun.shadow.camera.far = 40;
-sun.shadow.bias = -0.0006;
 scene.add(sun);
 const rim = new THREE.DirectionalLight(0x8fb7ff, 0.25);
 rim.position.set(-8, 4, -6);
@@ -142,22 +116,14 @@ function makeBoardTexture() {
     [6, 0], [6, 2], [6, 4], [6, 6], [6, 8],
   ]) star(r, c);
 
-  // 楚河 / 漢界 —— 直書：字沿河界縱向排列，且在預設視角下正立
-  // （貼圖相對於畫面旋轉了 90°：畫面上方 = 貼圖 +x，故字需旋轉 90° 並沿 x 排列）
+  // 河界文字在平面棋盤上橫向正立。
   g.fillStyle = 'rgba(74,51,32,0.8)';
-  g.font = '56px "Kaiti SC","STKaiti","KaiTi","Noto Serif TC",serif';
+  g.font = `500 56px ${CHESS_FONT_FAMILY}`;
   g.textAlign = 'center';
   g.textBaseline = 'middle';
   const ry = (4 + 5) / 2 * cell + pad;
-  const vChar = (ch, x) => {
-    g.save();
-    g.translate(x, ry);
-    g.rotate(Math.PI / 2);
-    g.fillText(ch, 0, 3);
-    g.restore();
-  };
-  vChar('楚', 264); vChar('河', 196);          // 畫面下方直書「楚河」
-  vChar('漢', W - 196); vChar('界', W - 264);  // 畫面上方直書「漢界」
+  g.fillText('楚 河', W * 0.25, ry);
+  g.fillText('漢 界', W * 0.75, ry);
 
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -244,16 +210,20 @@ function makeTopTexture(side, type) {
   g.lineWidth = 9;
   g.beginPath(); g.arc(s / 2, s / 2, s / 2 - 15, 0, Math.PI * 2); g.stroke();
   g.fillStyle = col;
-  g.font = '900 118px "Kaiti SC","STKaiti","KaiTi","Noto Serif TC",serif';
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  // 棋子文字朝向持有者：紅方在原點側（畫面下方），黑方在遠端（畫面上方）
-  if (side === BLACK) {
-    g.translate(s / 2, s / 2);
-    g.rotate(Math.PI);
-    g.translate(-s / 2, -s / 2);
-  }
-  g.fillText(name(side, type), s / 2, s / 2 + 8);
+  g.font = `500 138px ${CHESS_FONT_FAMILY}`;
+  g.textAlign = 'left';
+  g.textBaseline = 'alphabetic';
+  const label = name(side, type);
+  const bounds = g.measureText(label);
+  // 依實際筆畫邊界置中，避免不同字型的基線、留白讓棋子文字偏下。
+  const textX = (bounds.actualBoundingBoxLeft - bounds.actualBoundingBoxRight) / 2;
+  const textY = (bounds.actualBoundingBoxAscent - bounds.actualBoundingBoxDescent) / 2;
+  // 圓柱頂面 UV 比棋盤轉了 90°，先反轉文字，讓兩方都正向顯示。
+  g.save();
+  g.translate(s / 2, s / 2);
+  g.rotate(-Math.PI / 2);
+  g.fillText(label, textX, textY);
+  g.restore();
 
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -420,7 +390,7 @@ let gameStartTime = Date.now();
 let undoCount = 0;     // 本局悔棋次數（人機模式一次連退兩著仍計 1 次）
 
 // ---------------- 對弈模式 / AI ----------------
-let mode = 'medium';   // 'pvp' | 'easy' | 'medium' | 'hard'
+let mode = String(DEFAULT_LEVEL); // 'pvp' | '1'～'20'
 const AI_SIDE = BLACK; // 人機模式：玩家執紅，AI 執黑
 const isAI = () => mode !== 'pvp';
 let aiThinking = false;
@@ -430,7 +400,7 @@ let aiMoveStart = 0;
 let aiWorker = null;
 let aiModule = null;   // Worker 不可用時的主執行緒後備
 try {
-  aiWorker = new Worker(new URL('./ai-worker.js?v=e7dfdc3c2e', import.meta.url), { type: 'module' });
+  aiWorker = new Worker(new URL('./ai-worker.js?v=604e7afa0c', import.meta.url), { type: 'module' });
   aiWorker.onmessage = (e) => onAIResult(e.data);
   aiWorker.onerror = () => {
     aiWorker = null;
@@ -452,7 +422,7 @@ function requestAIMove() {
   if (aiWorker) {
     aiWorker.postMessage(payload);
   } else {
-    (aiModule ??= import('./ai.js?v=e7dfdc3c2e')).then(({ findBestMove }) => {
+    (aiModule ??= import('./ai.js?v=604e7afa0c')).then(({ findBestMove }) => {
       setTimeout(() => {
         if (token !== aiToken) return;
         onAIResult({ token, result: findBestMove(payload.board, payload.side, payload.level, payload.recent) });
@@ -504,7 +474,7 @@ window.__chess = {
   newGame,
   undo,
   doMove,
-  camera, renderer, scene, controls,
+  camera, renderer, scene,
 };
 
 const turnText = document.getElementById('turnText');
@@ -656,7 +626,6 @@ function animateCapture(m, done) {
     const s = Math.max(0.06, s0 * (1 - 0.92 * k));
     m.scale.set(s, s, s);
     m.position.y = y0 * (1 - k) + 0.02;
-    m.rotation.y = k * 1.1;
   }, done);
 }
 
@@ -680,7 +649,7 @@ function doMove(from, to) {
   const to3 = to3D(to.r, to.c);
   tween(340, (k) => {
     p.position.lerpVectors(from3, to3, k);
-    p.position.y = Y0 + Math.sin(Math.PI * k) * 0.55;
+    p.position.y = Y0;
   }, () => {
     if (cap) {
       sfx.capture();
@@ -810,18 +779,15 @@ function pick(event) {
 
 renderer.domElement.addEventListener('pointermove', (e) => {
   const hit = pick(e);
-  renderer.domElement.style.cursor = hit ? 'pointer' : (viewLocked ? 'default' : 'grab');
+  renderer.domElement.style.cursor = hit ? 'pointer' : 'default';
 });
 
 let downXY = null;
 renderer.domElement.addEventListener('pointerdown', (e) => { downXY = [e.clientX, e.clientY]; });
-// 拖曳／滾輪結束後記住視角（個人化，存瀏覽器）
-renderer.domElement.addEventListener('pointerup', queueSaveViewPrefs);
-renderer.domElement.addEventListener('wheel', queueSaveViewPrefs, { passive: true });
 
 renderer.domElement.addEventListener('click', (e) => {
   if (downXY && Math.hypot(e.clientX - downXY[0], e.clientY - downXY[1]) > 8) {
-    downXY = null; // 拖曳旋轉視角後產生的 click，忽略
+    downXY = null; // 忽略拖曳後產生的 click，避免誤走棋
     return;
   }
   downXY = null;
@@ -854,11 +820,15 @@ renderer.domElement.addEventListener('click', (e) => {
 
 // ---------------- 終局畫面 / 彩帶 / 分享 ----------------
 const SITE_URL = 'https://chinese-chess.gh.miniasp.com/';
-const DIFF = {
-  easy:   { label: '簡單', stars: 1, winTitle: '旗開得勝！', winSub: '小試身手就拿下 AI，好的開始！' },
-  medium: { label: '中等', stars: 2, winTitle: '運籌帷幄！', winSub: '攻守有度，中等 AI 也不是你的對手！' },
-  hard:   { label: '困難', stars: 3, winTitle: '棋壇霸主！', winSub: '深算遠謀，最強 AI 也俯首稱臣！' },
-};
+function difficultyResult() {
+  const { level, label } = getDifficulty(mode);
+  const stars = Math.ceil(level / 7);
+  return {
+    level, label, stars,
+    winTitle: ['旗開得勝！', '運籌帷幄！', '棋壇霸主！'][stars - 1],
+    winSub: `精彩對弈，你戰勝了${label} AI！`,
+  };
+}
 
 const ovCard = document.getElementById('ovCard');
 const ovBadge = document.getElementById('ovBadge');
@@ -888,7 +858,7 @@ function showGameOver(endReason) {
   const pvp = !isAI();
   const draw = winner == null;
   const playerWin = !pvp && !draw && winner !== AI_SIDE;
-  const d = pvp ? null : DIFF[mode];
+  const d = pvp ? null : difficultyResult();
   const plies = Math.max(1, history.length); // 棋譜著法數
   const secs = Math.max(1, Math.round((Date.now() - gameStartTime) / 1000));
   const caps = pvp ? capturedBy[winner ?? RED].length : capturedBy[RED].length;
@@ -904,14 +874,14 @@ function showGameOver(endReason) {
     badge = pvp ? '雙人對弈' : `人機對弈 ・ ${d.label}`;
     cardTitle = '和局';
     cardSub = `${pvp ? '雙人對弈' : `「${d.label}」AI`} ・ 鏖戰 ${plies} 著${pure ? ' ・ 零悔棋' : ''}`;
-    shareText = `我們在 3D 中國象棋鏖戰 ${plies} 著，弈和不分勝負！來對弈一局：${SITE_URL}`;
+    shareText = `我們在中國象棋鏖戰 ${plies} 著，弈和不分勝負！來對弈一局：${SITE_URL}`;
   } else if (pvp) {
     title = `${winLabel}勝`;
     sub = '棋逢敵手，精彩對弈！';
     badge = '雙人對弈';
     cardTitle = `${winLabel}勝出`;
     cardSub = `雙人對弈 ・ 鏖戰 ${plies} 著${pure ? ' ・ 零悔棋' : ''}`;
-    shareText = `我們在 3D 中國象棋鏖戰 ${plies} 著，${winLabel}獲勝！來對弈一局：${SITE_URL}`;
+    shareText = `我們在中國象棋鏖戰 ${plies} 著，${winLabel}獲勝！來對弈一局：${SITE_URL}`;
   } else if (playerWin) {
     title = d.winTitle;
     sub = d.winSub;
@@ -919,8 +889,8 @@ function showGameOver(endReason) {
     cardTitle = d.winTitle.replace('！', '');
     cardSub = `戰勝「${d.label}」AI ・ ${plies} 著${pure ? ' ・ 零悔棋' : ''}`;
     shareText = pure
-      ? `我在 3D 中國象棋全程零悔棋、${plies} 著戰勝「${d.label}」AI 🏆 不服來戰：${SITE_URL}`
-      : `我在 3D 中國象棋以 ${plies} 著戰勝「${d.label}」AI 🏆 不服來戰：${SITE_URL}`;
+      ? `我在中國象棋全程零悔棋、${plies} 著戰勝「${d.label}」AI 🏆 不服來戰：${SITE_URL}`
+      : `我在中國象棋以 ${plies} 著戰勝「${d.label}」AI 🏆 不服來戰：${SITE_URL}`;
   } else {
     title = '惜敗…';
     sub = '勝敗乃兵家常事，捲土重來！';
@@ -1050,7 +1020,7 @@ async function buildShareCard(res) {
   g.textAlign = 'center';
   g.fillStyle = '#9a8a74';
   g.font = `600 30px ${sans}`;
-  g.fillText('中 國 象 棋 ・ 3 D 對 弈', W / 2, 118);
+  g.fillText('中 國 象 棋 ・ 平 面 對 弈', W / 2, 118);
 
   g.fillStyle = '#f2c14e';
   g.shadowColor = 'rgba(242,193,78,0.45)';
@@ -1207,113 +1177,6 @@ btnHelp.addEventListener('click', () => {
   btnHelp.setAttribute('aria-pressed', String(on));
   closeHudMenu();
 });
-function flyTo(pos, tgt, done) {
-  cancelCameraTween();
-  const tgtFrom = controls.target.clone();
-  // 以「球座標」補間（繞著目標水平環繞），直線 lerp 在 180° 換邊時
-  // 相機會橫越棋盤正上方，畫面劇烈甩動、體感很差
-  const sphFrom = new THREE.Spherical().setFromVector3(camera.position.clone().sub(tgtFrom));
-  const sphTo = new THREE.Spherical().setFromVector3(pos.clone().sub(tgt));
-  let dTheta = sphTo.theta - sphFrom.theta;
-  // 取最短角距離；剛好半圈時固定逆時針，方向不會忽左忽右
-  while (dTheta > Math.PI) dTheta -= Math.PI * 2;
-  while (dTheta < -Math.PI) dTheta += Math.PI * 2;
-  if (dTheta === -Math.PI) dTheta = Math.PI;
-  // 旋轉角度越大、補間越久，讓換邊時節奏依然從容
-  const dur = 480 + (Math.abs(dTheta) / Math.PI) * 480;
-  tween(dur, (k) => {
-    const tgtNow = tgtFrom.clone().lerp(tgt, k);
-    const sph = new THREE.Spherical(
-      sphFrom.radius + (sphTo.radius - sphFrom.radius) * k,
-      sphFrom.phi + (sphTo.phi - sphFrom.phi) * k,
-      sphFrom.theta + dTheta * k,
-    );
-    camera.position.setFromSpherical(sph).add(tgtNow);
-    // 補間途中需自行更新相機朝向（tick 可能正跳過 controls.update()），
-    // 否則抵達後視線方向是舊的
-    camera.lookAt(tgtNow);
-  }, () => { saveViewPrefs(); if (done) done(); }, 0, 'camera');
-}
-function cancelCameraTween() {
-  for (let i = tweens.length - 1; i >= 0; i--) if (tweens[i].tag === 'camera') tweens.splice(i, 1);
-}
-
-// 「視角」按鈕：在多個預設機位之間循環切換
-const CAMERA_VIEWS = [
-  { label: '紅方', dist: 14.8, polar: 45, azimuth: -90, tgt: HOME_TGT },
-  { label: '黑方', dist: 14.8, polar: 45, azimuth: 90, tgt: new THREE.Vector3(0, -0.1, -0.2) },
-  { label: '側面', dist: 14.8, polar: 55, azimuth: 0, tgt: new THREE.Vector3(0, -0.1, 0.2) },
-  { label: '俯視', dist: 14.2, polar: 8, azimuth: -90, tgt: new THREE.Vector3(0, 0, 0.2) },
-];
-let viewIdx = 0;
-document.getElementById('btnView').addEventListener('click', () => {
-  viewIdx = (viewIdx + 1) % CAMERA_VIEWS.length;
-  const v = CAMERA_VIEWS[viewIdx];
-  const pos = new THREE.Vector3()
-    .setFromSphericalCoords(v.dist, THREE.MathUtils.degToRad(v.polar), THREE.MathUtils.degToRad(v.azimuth))
-    .add(v.tgt);
-  flyTo(pos, v.tgt);
-  toast(`視角：${v.label}`);
-});
-
-// 固定視角：鎖定鏡頭後拖曳／滾輪都不再改變視角（Issue #2）
-let viewLocked = false;
-const btnLock = document.getElementById('btnLock');
-function syncLockUI() {
-  controls.enabled = !viewLocked;
-  document.getElementById('btnLockText').textContent = viewLocked ? '固定視角：開' : '固定視角：關';
-  btnLock.setAttribute('aria-pressed', String(viewLocked));
-  btnLock.classList.toggle('on', viewLocked);
-}
-btnLock.addEventListener('click', () => {
-  viewLocked = !viewLocked;
-  syncLockUI();
-  saveViewPrefs();
-  // 以「現狀」固定：凍結當下視角與進行中的相機補間，不做歸位
-  if (viewLocked) cancelCameraTween();
-});
-syncLockUI();
-
-// ---------------- 個人化：記住 3D 視角與固定視角設定（localStorage） ----------------
-const VIEW_PREF_KEY = 'xiangqi.viewPrefs.v1';
-let saveViewTimer = 0;
-function saveViewPrefs() {
-  try {
-    localStorage.setItem(VIEW_PREF_KEY, JSON.stringify({
-      pos: camera.position.toArray(),
-      tgt: controls.target.toArray(),
-      locked: viewLocked,
-      viewIdx,
-    }));
-  } catch { /* 無法寫入（如隱私模式）時靜默略過 */ }
-}
-function queueSaveViewPrefs() {
-  clearTimeout(saveViewTimer);
-  saveViewTimer = setTimeout(saveViewPrefs, 600); // 等慣性減速大致停止再存
-}
-function loadViewPrefs() {
-  try {
-    const p = JSON.parse(localStorage.getItem(VIEW_PREF_KEY) || 'null');
-    const okVec = (a) => Array.isArray(a) && a.length === 3 && a.every(Number.isFinite);
-    if (!p || !okVec(p.pos) || !okVec(p.tgt)) return null;
-    return p;
-  } catch { return null; }
-}
-// 啟動時還原個人化設定
-const savedPrefs = loadViewPrefs();
-if (savedPrefs) {
-  camera.position.fromArray(savedPrefs.pos);
-  controls.target.fromArray(savedPrefs.tgt);
-  camera.lookAt(controls.target);
-  if (savedPrefs.locked) {
-    viewLocked = true;
-    syncLockUI();
-  }
-  if (Number.isInteger(savedPrefs.viewIdx)) {
-    viewIdx = ((savedPrefs.viewIdx % CAMERA_VIEWS.length) + CAMERA_VIEWS.length) % CAMERA_VIEWS.length;
-  }
-}
-window.addEventListener('pagehide', saveViewPrefs);
 document.getElementById('btnAgain').addEventListener('click', newGame);
 
 // 全螢幕（含 Safari webkit 前綴）
@@ -1344,7 +1207,17 @@ syncFullBtn();
 function resize() {
   const w = container.clientWidth, h = container.clientHeight;
   if (w === 0 || h === 0) return;
-  camera.aspect = w / h;
+  // 留出上方回合提示與手機底部吃子列的空間，並完整容納棋盤外框。
+  const top = 52;
+  const bottom = window.matchMedia('(max-width: 900px)').matches ? 100 : 20;
+  const usableHeight = Math.max(1, h - top - bottom);
+  const scale = Math.min(w / (BOARD_W + 1), usableHeight / (BOARD_H + 1));
+  const halfW = w / scale / 2, halfH = h / scale / 2;
+  const offset = (top - bottom) / scale / 2;
+  camera.left = -halfW;
+  camera.right = halfW;
+  camera.top = halfH + offset;
+  camera.bottom = -halfH + offset;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
 }
@@ -1357,7 +1230,6 @@ function tick(now) {
     const s = 1 + Math.sin(now * 0.006) * 0.05;
     selRing.scale.set(s, s, 1);
   }
-  if (!viewLocked) controls.update(); // 鎖定時不套用控制器更新，慣性晃動一併凍結
   renderer.render(scene, camera);
 }
 renderer.setAnimationLoop(tick);

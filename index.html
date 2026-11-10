@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>中國象棋 · Three.js 3D</title>
+<title>中國象棋 · 平面棋盤</title>
 
 <!-- SEO -->
-<meta name="description" content="用 Three.js 打造的 3D 互動中國象棋，支援人機對弈（AI 分簡單、中等、困難三級）與雙人對戰。完整規則引擎：將軍、將死、困斃、長將判負、三次重複局面判和、蹩馬腿、塞象眼、炮翻山、白臉將，並以傳統棋譜記法記錄著法。免費線上遊玩，無需安裝。">
+<meta name="description" content="固定平面棋盤的互動中國象棋，支援人機對弈（AI 提供第 1～20 級難度）與雙人對戰。完整規則引擎：將軍、將死、困斃、長將判負、三次重複局面判和、蹩馬腿、塞象眼、炮翻山、白臉將，並以傳統棋譜記法記錄著法。免費線上遊玩，無需安裝。">
 <meta name="author" content="Will 保哥">
 <meta name="theme-color" content="#171310">
 <link rel="icon" href="./favicon.ico" sizes="16x16 32x32 48x48">
@@ -15,21 +15,21 @@
 
 <!-- Open Graph -->
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="中國象棋 · Three.js 3D">
-<meta property="og:title" content="中國象棋 · Three.js 3D">
-<meta property="og:description" content="用 Three.js 打造的 3D 互動中國象棋，支援人機對弈（三級 AI 難度）與雙人對戰。完整規則引擎與傳統棋譜記法，免費線上遊玩。">
+<meta property="og:site_name" content="中國象棋 · 平面棋盤">
+<meta property="og:title" content="中國象棋 · 平面棋盤">
+<meta property="og:description" content="固定平面棋盤的互動中國象棋，支援人機對弈（第 1～20 級 AI 難度）與雙人對戰。完整規則引擎與傳統棋譜記法，免費線上遊玩。">
 <meta property="og:url" content="https://chinese-chess.gh.miniasp.com/">
 <meta property="og:locale" content="zh_TW">
 <meta property="og:image" content="https://chinese-chess.gh.miniasp.com/og-image.jpg?v=20260826">
 <meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="3D 中國象棋開局棋盤，紅黑雙方棋子擺放於木紋棋盤上">
+<meta property="og:image:alt" content="中國象棋開局棋盤，紅黑雙方棋子擺放於木紋棋盤上">
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="中國象棋 · Three.js 3D">
-<meta name="twitter:description" content="用 Three.js 打造的 3D 互動中國象棋，支援人機對弈（三級 AI 難度）與雙人對戰。完整規則引擎與傳統棋譜記法，免費線上遊玩。">
+<meta name="twitter:title" content="中國象棋 · 平面棋盤">
+<meta name="twitter:description" content="固定平面棋盤的互動中國象棋，支援人機對弈（第 1～20 級 AI 難度）與雙人對戰。完整規則引擎與傳統棋譜記法，免費線上遊玩。">
 <meta name="twitter:image" content="https://chinese-chess.gh.miniasp.com/og-image.jpg?v=20260826">
 
 <!-- JSON-LD -->
@@ -37,9 +37,9 @@
 {
   "@context": "https://schema.org",
   "@type": "VideoGame",
-  "name": "中國象棋 · Three.js 3D",
-  "alternateName": "Chinese Chess (Xiangqi) 3D",
-  "description": "用 Three.js 打造的 3D 互動中國象棋，支援人機對弈（AI 分簡單、中等、困難三級）與雙人對戰。完整規則引擎：將軍、將死、困斃、長將判負、三次重複局面判和、蹩馬腿、塞象眼、炮翻山、白臉將，並以傳統棋譜記法記錄著法。",
+  "name": "中國象棋 · 平面棋盤",
+  "alternateName": "Chinese Chess (Xiangqi)",
+  "description": "固定平面棋盤的互動中國象棋，支援人機對弈（AI 提供第 1～20 級難度）與雙人對戰。完整規則引擎：將軍、將死、困斃、長將判負、三次重複局面判和、蹩馬腿、塞象眼、炮翻山、白臉將，並以傳統棋譜記法記錄著法。",
   "url": "https://chinese-chess.gh.miniasp.com/",
   "image": "https://chinese-chess.gh.miniasp.com/og-image.jpg?v=20260826",
   "inLanguage": "zh-Hant",
@@ -68,12 +68,11 @@
   "sameAs": ["https://github.com/doggy8088/chinese-chess"]
 }
 </script>
-<link rel="stylesheet" href="./css/style.css?v=e7dfdc3c2e">
+<link rel="stylesheet" href="./css/style.css?v=604e7afa0c">
 <script type="importmap">
 {
   "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    "three": "./vendor/three/three.module.js"
   }
 }
 </script>
@@ -83,13 +82,30 @@
   <header>
     <div class="brand">
       <h1>中國象棋</h1>
-      <span class="sub">THREE.JS · 3D 互動棋盤 · 人機對弈 / 雙人對戰</span>
+      <span class="sub">固定平面棋盤 · 人機對弈 / 雙人對戰</span>
     </div>
     <div id="hud">
       <select id="modeSel" aria-label="對弈模式" title="選擇對弈模式">
-        <option value="easy">人機・簡單</option>
-        <option value="medium" selected>人機・中等</option>
-        <option value="hard">人機・困難</option>
+        <option value="1">人機・第 1 級</option>
+        <option value="2">人機・第 2 級</option>
+        <option value="3">人機・第 3 級</option>
+        <option value="4">人機・第 4 級</option>
+        <option value="5">人機・第 5 級</option>
+        <option value="6">人機・第 6 級</option>
+        <option value="7">人機・第 7 級</option>
+        <option value="8">人機・第 8 級</option>
+        <option value="9">人機・第 9 級</option>
+        <option value="10" selected>人機・第 10 級</option>
+        <option value="11">人機・第 11 級</option>
+        <option value="12">人機・第 12 級</option>
+        <option value="13">人機・第 13 級</option>
+        <option value="14">人機・第 14 級</option>
+        <option value="15">人機・第 15 級</option>
+        <option value="16">人機・第 16 級</option>
+        <option value="17">人機・第 17 級</option>
+        <option value="18">人機・第 18 級</option>
+        <option value="19">人機・第 19 級</option>
+        <option value="20">人機・第 20 級</option>
         <option value="pvp">雙人對弈</option>
       </select>
       <button id="btnUndo" type="button">悔棋</button>
@@ -98,12 +114,7 @@
       <div id="hudMore">
         <button id="btnHelp" type="button" aria-pressed="false">玩法說明</button>
         <button id="btnSound" type="button" aria-pressed="true">音效：開</button>
-        <button id="btnView" type="button" title="循環切換：紅方 → 黑方 → 側面 → 俯視">視角</button>
         <button id="btnFull" type="button" aria-pressed="false">全螢幕</button>
-        <a id="repoLink" href="https://github.com/doggy8088/chinese-chess" target="_blank" rel="noopener" title="在 GitHub 檢視原始碼">
-          <svg viewBox="0 0 16 16" aria-hidden="true" width="15" height="15" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-2.92-.89-2.92-2.75 0-.53.19-1.07.5-1.48-.05-.12-.22-.62.05-1.29 0 0 .61-.19 2 .74a4.7 4.7 0 0 1 2.55 0c1.39-.94 2-.74 2-.74.27.67.1 1.17.05 1.29.31.41.5.94.5 1.48 0 1.87-1.14 2.55-2.93 2.75.29.25.55.74.55 1.5 0 1.08-.01 1.96-.01 2.23 0 .21.15.46.55.38A7.99 7.99 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
-          <span>GitHub</span>
-        </a>
       </div>
     </div>
   </header>
@@ -119,10 +130,10 @@
         <div id="capBlack" class="chips"></div>
       </section>
       <div class="help">
-        <p>上方選單可選擇 AI 難度（簡單／中等／困難）或雙人對弈，切換即開新局。</p>
+        <p>上方選單可選擇 AI 難度（第 1～20 級）或雙人對弈，切換即開新局。</p>
         <p>人機模式由你執紅先行，悔棋會連 AI 的回應一併退回。</p>
         <p>點擊己方棋子選中（亮起走法提示），再點擊目標交叉點移動；落到敵子上即為吃子。</p>
-        <p>拖曳空白處旋轉視角，滾輪 / 雙指縮放；按「固定視角」會把鏡頭凍結在當下的視角，畫面就不會再晃動。</p>
+        <p>棋盤採固定平面視圖，紅方在下、黑方在上；雙方棋子文字皆正向顯示，點選即可走棋。</p>
       </div>
       <footer class="copyright">
         Copyright © 2026 <a href="https://www.facebook.com/will.fans/" target="_blank" rel="noopener">Will 保哥</a>
@@ -130,10 +141,6 @@
     </aside>
 
     <div id="stage">
-      <button id="btnLock" type="button" aria-pressed="false" title="固定視角">
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" x2="12" y1="17" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 16 10.76V6h1a2 2 0 0 0 0-4H7a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
-        <span class="lbl" id="btnLockText">固定視角：關</span>
-      </button>
       <div id="turn" aria-live="polite"><span id="turnDot"></span><span id="turnText">紅方先行</span></div>
     </div>
 
@@ -149,7 +156,7 @@
   <div id="overlay" class="hidden">
     <canvas id="confettiCv" aria-hidden="true"></canvas>
     <div class="card" id="ovCard">
-      <div id="ovBadge">人機對弈 ・ 中等</div>
+      <div id="ovBadge">人機對弈 ・ 第 10 級</div>
       <h2 id="ovTitle">你贏了！</h2>
       <div id="ovStars" aria-hidden="true"></div>
       <p id="ovSub">精彩對弈！</p>
@@ -170,6 +177,6 @@
   <div id="toast" class="hidden" role="status"></div>
 </div>
 
-<script type="module" src="./main.js?v=e7dfdc3c2e"></script>
+<script type="module" src="./main.js?v=604e7afa0c"></script>
 </body>
 </html>

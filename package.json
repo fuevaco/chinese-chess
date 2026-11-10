@@ -1,0 +1,52 @@
+{
+  "name": "chinese-chess-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "中國象棋平面棋盤：離線人機對弈與雙人對戰",
+  "author": "Will 保哥",
+  "license": "MIT",
+  "engines": { "node": ">=22.12.0" },
+  "main": "desktop/main.cjs",
+  "scripts": {
+    "prestart": "install-electron",
+    "start": "electron .",
+    "test": "node test.mjs && node ai-test.mjs",
+    "prepack:win": "node tools/bump-cache.mjs --check",
+    "pack:win": "node tools/build-portable.mjs"
+  },
+  "devDependencies": {
+    "electron": "45.2.3",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "local.chinesechess.desktop",
+    "productName": "中國象棋",
+    "asar": true,
+    "directories": { "output": "release" },
+    "files": [
+      "desktop/main.cjs",
+      "index.html",
+      "main.js",
+      "game.js",
+      "ai.js",
+      "ai-worker.js",
+      "difficulty.js",
+      "css/**",
+      "fonts/**",
+      "vendor/**",
+      "favicon.ico",
+      "desktop/icon.ico",
+      "apple-touch-icon.png",
+      "LICENSE"
+    ],
+    "win": {
+      "target": [{ "target": "portable", "arch": ["x64"] }],
+      "icon": "desktop/icon.ico",
+      "artifactName": "ChineseChess-${version}-Windows-x64.exe"
+    },
+    "portable": {
+      "requestExecutionLevel": "user"
+    }
+  }
+}

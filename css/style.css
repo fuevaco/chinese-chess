@@ -1,5 +1,13 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+@font-face {
+  font-family: "Xiangqi WenKai";
+  src: url("../fonts/chess-wenkai-medium.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+}
+
 :root {
   --bg: #171310;
   --panel: #211a14;
@@ -66,48 +74,6 @@ h1 { font-size: 19px; letter-spacing: 6px; font-weight: 700; }
   font-size: 14px;
 }
 
-/* 固定視角開關：浮動在棋盤黑底左上角，與回合徽章對稱。
-   平時只顯示圖釘圖示，滑鼠 hover／鍵盤 focus 時以動畫展開文字標籤 */
-#btnLock {
-  position: absolute;
-  top: 12px;
-  left: 14px;
-  z-index: 6;
-  display: inline-flex;
-  align-items: center;
-  gap: 0;
-  padding: 8px;
-  border-radius: 999px;
-  background: rgba(23, 18, 13, 0.78);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
-  border-color: rgba(58, 46, 34, 0.9);
-  font-size: 14px;
-  transition: gap 0.28s ease, padding 0.28s ease, background 0.15s, border-color 0.15s, box-shadow 0.15s;
-}
-#btnLock svg { flex: none; }
-#btnLock .lbl {
-  max-width: 0;
-  opacity: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  letter-spacing: 1px;
-  transition: max-width 0.28s ease, opacity 0.2s ease;
-}
-#btnLock:hover, #btnLock:focus-visible {
-  gap: 7px;
-  padding: 8px 14px;
-}
-#btnLock:hover .lbl, #btnLock:focus-visible .lbl {
-  max-width: 104px;
-  opacity: 1;
-}
-#btnLock.on {
-  color: var(--gold);
-  border-color: rgba(217, 164, 65, 0.55);
-  box-shadow: 0 0 16px rgba(217, 164, 65, 0.25);
-}
 #turnDot { width: 11px; height: 11px; border-radius: 50%; background: var(--red); box-shadow: 0 0 9px var(--red); }
 
 button {
@@ -148,23 +114,6 @@ button:disabled { opacity: 0.45; cursor: default; }
   50% { opacity: 0.35; transform: scale(0.72); }
 }
 
-#repoLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13.5px;
-  color: var(--muted);
-  text-decoration: none;
-  background: var(--panel2);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 7px 12px;
-  letter-spacing: 1px;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
-}
-#repoLink:hover { background: #33281d; border-color: #4d3c2a; color: var(--text); }
-#repoLink svg { flex: none; }
-
 /* 「更多」選單按鈕：僅小螢幕顯示；#hudMore 桌面版攤平成一般按鈕列 */
 #btnMore { display: none; font-size: 17px; line-height: 1; letter-spacing: 0; padding: 7px 12px; }
 #hudMore { display: contents; }
@@ -176,8 +125,8 @@ button:disabled { opacity: 0.45; cursor: default; }
 /* ---------- 主区域 ---------- */
 main { flex: 1; display: flex; min-height: 0; }
 
-#stage { flex: 1; min-width: 0; position: relative; }
-#stage canvas { display: block; }
+#stage { flex: 1; min-width: 0; min-height: 0; position: relative; }
+#stage canvas { display: block; position: absolute; inset: 0; }
 
 aside {
   width: 232px;
@@ -208,7 +157,8 @@ aside h3 {
   display: inline-flex; align-items: center; justify-content: center;
   border-radius: 50%;
   font-size: 15px;
-  font-weight: 700;
+  font-family: "Xiangqi WenKai", "DFKai-SB", "KaiTi", serif;
+  font-weight: 500;
   background: radial-gradient(circle at 35% 30%, #eed6a8, #c08f52);
 }
 .chip.red { color: #b32c20; }
@@ -467,7 +417,7 @@ aside h3 {
     z-index: 60;
   }
   #hudMore.open { display: flex; }
-  #hudMore > button, #hudMore > #repoLink {
+  #hudMore > button {
     width: 100%;
     justify-content: flex-start;
     text-align: left;
@@ -475,7 +425,7 @@ aside h3 {
   }
   #btnHelp { display: inline-flex; }
 
-  /* 吃子托盤：浮動貼在棋盤底部黑邊上，指標事件穿透可繼續轉視角 */
+  /* 吃子托盤：浮動貼在棋盤底部黑邊上，指標事件穿透可繼續操作棋盤 */
   #left {
     position: absolute;
     left: 10px;

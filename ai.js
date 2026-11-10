@@ -1,10 +1,11 @@
 // ============================================================
 // 中國象棋 AI 引擎 —— negamax + alpha-beta 剪枝 + 靜態搜索
 // 純邏輯，可在 Web Worker 或主執行緒使用
-// 難度：easy（淺層＋隨機）/ medium（3 層）/ hard（迭代加深至 6 層，殘局更深）
+// 難度：第 1～20 級，逐步增加搜尋深度、時間並降低隨機性。
 // 加強：置換表、killer/history 排序、將軍延伸、應將靜態搜索、重複局面偵測
 // ============================================================
-import { ROWS, COLS, RED, BLACK, getMoves, legalMoves, kingsFacing, kingPos, inCheck, hashBoard } from './game.js?v=e7dfdc3c2e';
+import { ROWS, COLS, RED, BLACK, getMoves, legalMoves, kingsFacing, kingPos, inCheck, hashBoard } from './game.js?v=604e7afa0c';
+import { DEFAULT_LEVEL, getDifficulty } from './difficulty.js?v=604e7afa0c';
 
 const INF = 1e9;
 const MATE = 100000;
@@ -447,19 +448,14 @@ function negamax(b, side, depth, alpha, beta, ply) {
 
 // ---------------- 難度設定 ----------------
 // window：與最佳著法分差在此範圍內的著法隨機挑選（兼顧變化與強度）
-const LEVELS = {
-  easy:   { maxDepth: 1, timeMs: 400,  window: 50, randomRate: 0.3 },
-  medium: { maxDepth: 3, timeMs: 900,  window: 8,  randomRate: 0 },
-  hard:   { maxDepth: 6, timeMs: 4500, window: 0,  randomRate: 0 },
-};
 
 /**
  * 找出 side 方的最佳著法。
  * @param {Array} recent 近期局面雜湊（hashBoard 字串），會懲罰走回原局面的著法
  * @returns {{from:{r,c}, to:{r,c}, score:number, depth:number}|null} 無合法著法時回 null
  */
-export function findBestMove(srcBoard, side, level = 'medium', recent = []) {
-  const cfg = LEVELS[level] || LEVELS.medium;
+export function findBestMove(srcBoard, side, level = DEFAULT_LEVEL, recent = []) {
+  const cfg = getDifficulty(level);
   let b = srcBoard.map((row) => row.map((p) => (p ? { type: p.type, side: p.side } : null)));
 
   // 根節點只考慮「嚴格合法」的著法（不送將、不對臉）
@@ -474,7 +470,7 @@ export function findBestMove(srcBoard, side, level = 'medium', recent = []) {
 
   const fmt = (m, score, depth) => ({ from: { r: m.fr, c: m.fc }, to: { r: m.tr, c: m.tc }, score, depth });
 
-  // 簡單模式：一定機率直接亂走
+  // 低等級有一定機率從合法著法中隨機挑選。
   if (cfg.randomRate && Math.random() < cfg.randomRate) {
     return fmt(rootMoves[(Math.random() * rootMoves.length) | 0], 0, 0);
   }
@@ -483,10 +479,10 @@ export function findBestMove(srcBoard, side, level = 'medium', recent = []) {
   let pieceCount = 0;
   for (const row of b) for (const p of row) if (p) pieceCount++;
   let maxDepth = cfg.maxDepth;
-  if (level === 'hard') {
-    if (pieceCount <= 6) maxDepth = Math.max(maxDepth, 12);       // 子少分支小，可深算
+  if (cfg.level >= 17) {
+    if (pieceCount <= 6) maxDepth = Math.max(maxDepth, 10 + Math.floor((cfg.level - 17) * 2 / 3));
     else if (pieceCount <= 10) maxDepth += 2;
-  } else if (level === 'medium' && pieceCount <= 8) maxDepth += 1;
+  } else if (cfg.level >= 10 && pieceCount <= 8) maxDepth += 1;
 
   nodes = 0;
   deadline = Date.now() + cfg.timeMs;
@@ -586,7 +582,7 @@ export function findBestMove(srcBoard, side, level = 'medium', recent = []) {
     scored.sort((a, b2) => b2.score - a.score);
   }
 
-  // hard（window=0）或有殺棋：直接取最佳著法（同分著法隨機）
+  // 高等級（window=0）或有殺棋：直接取最佳著法（同分著法隨機）
   const topScore = scored[0].score;
   const top = scored.filter((e) => e.score === topScore);
   const pick = top[(Math.random() * top.length) | 0];
